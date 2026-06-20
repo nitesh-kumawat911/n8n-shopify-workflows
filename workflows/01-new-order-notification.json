@@ -1,0 +1,175 @@
+{
+  "name": "Shopify - New Order Notification (Slack + Google Sheets)",
+  "nodes": [
+    {
+      "parameters": {
+        "topic": "orders/create"
+      },
+      "id": "34790493-f801-441c-bb94-edc97684507e",
+      "name": "Shopify Trigger - New Order",
+      "type": "n8n-nodes-base.shopifyTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ],
+      "credentials": {
+        "shopifyApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Shopify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "order_number",
+              "value": "={{ $json.order_number }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "customer",
+              "value": "={{ $json.customer.first_name }} {{ $json.customer.last_name }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "total",
+              "value": "={{ $json.currency }} {{ $json.total_price }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "items",
+              "value": "={{ $json.line_items.map(i => i.quantity + 'x ' + i.title).join(', ') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "04e09bf1-7e6a-4ef2-9ef1-d09ffee5fb5f",
+      "name": "Format Order",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0000000000",
+          "mode": "id"
+        },
+        "text": "=:shopping_bags: *New order #{{ $json.order_number }}*\nCustomer: {{ $json.customer }}\nTotal: {{ $json.total }}\nItems: {{ $json.items }}",
+        "otherOptions": {}
+      },
+      "id": "ac85e635-6040-40a4-a666-a45feaf8fe82",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        760,
+        200
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Orders",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Order": "={{ $json.order_number }}",
+            "Customer": "={{ $json.customer }}",
+            "Email": "={{ $json.email }}",
+            "Total": "={{ $json.total }}",
+            "Items": "={{ $json.items }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "41fe1434-0cd4-4e73-992f-c8ea14c67de9",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        760,
+        400
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Shopify Trigger - New Order": {
+      "main": [
+        [
+          {
+            "node": "Format Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Order": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "shopify"
+    }
+  ]
+}

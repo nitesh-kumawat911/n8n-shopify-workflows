@@ -1,0 +1,170 @@
+{
+  "name": "Shopify - Daily Low Stock Alert (Email)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "67691f46-be77-48b3-9543-2fdb503d6962",
+      "name": "Every Day 9 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "shopifyApi",
+        "url": "https://YOUR-STORE.myshopify.com/admin/api/2024-10/products.json?limit=250",
+        "options": {}
+      },
+      "id": "4b9b2b1a-8be9-4689-b065-39869d21fd38",
+      "name": "Get Products (Shopify Admin API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "shopifyApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Shopify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Threshold below which a variant is considered low stock\nconst THRESHOLD = 5;\nconst lowStock = [];\n\nfor (const item of $input.all()) {\n  const products = item.json.products || [];\n  for (const product of products) {\n    for (const variant of product.variants || []) {\n      const qty = Number(variant.inventory_quantity);\n      if (!Number.isNaN(qty) && qty <= THRESHOLD) {\n        lowStock.push({\n          json: {\n            product: product.title,\n            variant: variant.title,\n            sku: variant.sku,\n            quantity: qty\n          }\n        });\n      }\n    }\n  }\n}\n\nreturn lowStock;"
+      },
+      "id": "c3396557-59ce-4870-9a68-2d6ec5d0177a",
+      "name": "Find Low Stock Variants",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "afe1579f-a240-47cc-ac18-2f5af537288c",
+      "name": "Any Low Stock?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "owner@yourstore.com",
+        "subject": "=Low stock alert - {{ $items().length }} variant(s) need restocking",
+        "emailType": "text",
+        "message": "=The following variants are at or below the low-stock threshold:\n\n{{ $items().map(i => '- ' + i.json.product + ' (' + i.json.variant + ', SKU ' + i.json.sku + '): ' + i.json.quantity + ' left').join('\\n') }}",
+        "options": {}
+      },
+      "id": "52373ab0-8639-43bb-91e4-53a0fc63d8cb",
+      "name": "Send Low Stock Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1220,
+        220
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Day 9 AM": {
+      "main": [
+        [
+          {
+            "node": "Get Products (Shopify Admin API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Products (Shopify Admin API)": {
+      "main": [
+        [
+          {
+            "node": "Find Low Stock Variants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Low Stock Variants": {
+      "main": [
+        [
+          {
+            "node": "Any Low Stock?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Low Stock?": {
+      "main": [
+        [
+          {
+            "node": "Send Low Stock Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "shopify"
+    }
+  ]
+}

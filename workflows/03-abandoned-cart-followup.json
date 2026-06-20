@@ -1,0 +1,183 @@
+{
+  "name": "Shopify - Abandoned Cart Follow-up (Email)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "b1044cb5-c464-4c3d-a59a-1bd6e3350358",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "shopifyApi",
+        "url": "https://YOUR-STORE.myshopify.com/admin/api/2024-10/checkouts.json?limit=100",
+        "options": {}
+      },
+      "id": "cb03a806-d6c7-4194-a112-df6b58abaf79",
+      "name": "Get Abandoned Checkouts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        300
+      ],
+      "credentials": {
+        "shopifyApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Shopify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "checkouts",
+        "options": {}
+      },
+      "id": "4d147cb1-68c9-4c1a-bcb7-29341cf2e13b",
+      "name": "Split Checkouts",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.completed_at }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bcd2b148-7faf-4605-9185-4bff40f9509c",
+      "name": "Has Email & Not Recovered",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "You left something in your cart \uD83D\uDED2",
+        "emailType": "text",
+        "message": "=Hi {{ $json.customer && $json.customer.first_name ? $json.customer.first_name : 'there' }},\n\nWe noticed you left some items in your cart. They're still waiting for you!\n\nComplete your order here: {{ $json.abandoned_checkout_url }}\n\nThanks,\nThe Team",
+        "options": {}
+      },
+      "id": "a3ea4340-43f6-4373-8dc6-4544898fb4eb",
+      "name": "Send Reminder Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        220
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Get Abandoned Checkouts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Abandoned Checkouts": {
+      "main": [
+        [
+          {
+            "node": "Split Checkouts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Checkouts": {
+      "main": [
+        [
+          {
+            "node": "Has Email & Not Recovered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Email & Not Recovered": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "shopify"
+    }
+  ]
+}
